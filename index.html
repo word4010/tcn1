@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ТСН-Новини</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial;
+            background: #f5f5f5;
+            color: #111
+        }
+
+        header {
+            background: #c40000;
+            color: #fff;
+            padding: 15px;
+            font-size: 30px;
+            font-weight: bold;
+            text-align: center
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: auto;
+            padding: 20px
+        }
+
+        .filters {
+            margin: 15px 0
+        }
+
+        .filters button {
+            margin-right: 10px
+        }
+
+        .news {
+            background: #fff;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: relative
+        }
+
+        .news img {
+            width: 100%;
+            border-radius: 6px;
+            margin-bottom: 10px
+        }
+
+        .news h2 {
+            margin: 0 0 10px
+        }
+
+        .news small {
+            color: gray
+        }
+
+        button {
+            background: #c40000;
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 5px
+        }
+
+        .like {
+            margin-top: 10px;
+            cursor: pointer;
+            color: #c40000
+        }
+
+        .delete {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            color: red;
+            font-size: 14px;
+            display: none
+        }
+
+        #editor {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000cc;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none
+        }
+
+        #editorBox {
+            background: #fff;
+            padding: 20px;
+            width: 320px;
+            border-radius: 10px;
+            position: relative
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #c40000;
+            font-weight: bold
+        }
+    </style>
+</head>
+
+<body>
+    <header>ТСН-Новини</header>
+
+    <div class="container">
+        <button onclick="openEditor()">+ Додати новину</button>
+        <div class="filters">
+            <button onclick="filterNews('all')">Всі</button>
+            <button onclick="filterNews('Політика')">Політика</button>
+            <button onclick="filterNews('Ігри')">Ігри</button>
+            <button onclick="filterNews('Світ')">Світ</button>
+        </div>
+        <div id="newsList"></div>
+    </div>
+
+    <div id="editor">
+        <div id="editorBox">
+            <div class="close-btn" onclick="closeEditor()">×</div>
+            <h3>Вхід редактора</h3>
+            <input type="password" id="pass" placeholder="Пароль">
+            <button onclick="checkPass()">Увійти</button>
+
+            <div id="editPanel" style="display:none; margin-top:15px">
+                <h3>Нова новина</h3>
+                <input id="title" placeholder="Заголовок">
+                <input type="file" id="file">
+                <select id="cat">
+                    <option>Політика</option>
+                    <option>Ігри</option>
+                    <option>Світ</option>
+                </select>
+                <textarea id="text" placeholder="Текст"></textarea>
+                <button onclick="addNews()">Опублікувати</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PASSWORD = btoa("ua2026");
+        let currentFilter = 'all';
+        let isAuth = false;
+
+        function openEditor() { document.getElementById('editor').style.display = 'flex'; }
+        function closeEditor() { document.getElementById('editor').style.display = 'none'; }
+
+        function checkPass() {
+            let input = document.getElementById('pass').value;
+            if (btoa(input) === PASSWORD) {
+                isAuth = true;
+                document.getElementById('editPanel').style.display = 'block';
+                closeEditor();
+                render();
+                alert('Ви увійшли як редактор');
+            } else alert('Невірний пароль');
+        }
+
+        function addNews() {
+            if (!isAuth) return alert('Спочатку увійдіть як редактор');
+            let title = document.getElementById('title').value.trim();
+            let text = document.getElementById('text').value.trim();
+            let fileInput = document.getElementById('file');
+            let category = document.getElementById('cat').value;
+            if (!title || !text) return alert('Заповни все');
+
+            let reader = new FileReader();
+            reader.onload = function () {
+                let newsItem = { t: title, c: text, i: reader.result, cat: category, d: new Date().toLocaleString(), likes: 0 };
+                let arr = JSON.parse(localStorage.getItem('news') || '[]');
+                arr.unshift(newsItem);
+                localStorage.setItem('news', JSON.stringify(arr));
+                render();
+                document.getElementById('title').value = '';
+                document.getElementById('text').value = '';
+                fileInput.value = '';
+            }
+            if (fileInput.files[0]) reader.readAsDataURL(fileInput.files[0]);
+            else reader.onload();
+        }
+
+        function getNews() { return JSON.parse(localStorage.getItem('news') || '[]'); }
+
+        function like(i) {
+            let arr = getNews();
+            arr[i].likes++;
+            localStorage.setItem('news', JSON.stringify(arr));
+            render();
+        }
+
+        function deleteNews(i) {
+            if (!isAuth) return alert('Нема доступу');
+            let arr = getNews();
+            arr.splice(i, 1);
+            localStorage.setItem('news', JSON.stringify(arr));
+            render();
+        }
+
+        function filterNews(cat) { currentFilter = cat; render(); }
+
+        function render() {
+            let list = document.getElementById('newsList');
+            list.innerHTML = '';
+            getNews().forEach((n, i) => {
+                if (currentFilter !== 'all' && n.cat !== currentFilter) return;
+                let div = document.createElement('div');
+                div.className = 'news';
+                div.innerHTML = `
+        ${isAuth ? `<div class="delete" style="display:block" onclick="deleteNews(${i})">✖</div>` : ''}
+        ${n.i ? `<img src="${n.i}">` : ''}
+        <h2>${n.t}</h2>
+        <small>${n.cat} | ${n.d}</small>
+        <p>${n.c}</p>
+        <div class="like" onclick="like(${i})">❤️ ${n.likes}</div>
+        `;
+                list.append(div);
+            });
+        }
+
+        render();
+    </script>
+
+</body>
+
+</html>
