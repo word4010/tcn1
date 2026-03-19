@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ТСН-Новини</title>
+    <title>ТСН-Новини PRO</title>
     <style>
         body {
             margin: 0;
@@ -80,12 +80,11 @@
             right: 10px;
             cursor: pointer;
             color: red;
-            font-size: 14px;
-            display: none
+            font-size: 14px
         }
 
         #editor {
-            display: flex;
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
@@ -93,9 +92,7 @@
             height: 100%;
             background: #000000cc;
             align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            display: none
+            justify-content: center
         }
 
         #editorBox {
@@ -106,28 +103,28 @@
             position: relative
         }
 
-        input,
-        textarea,
-        select {
+        #editorBox input,
+        #editorBox textarea,
+        #editorBox select {
             width: 100%;
             margin: 5px 0;
             padding: 8px
         }
 
-        .close-btn {
+        .close-editor {
             position: absolute;
             top: 5px;
             right: 10px;
             cursor: pointer;
-            font-size: 20px;
-            color: #c40000;
-            font-weight: bold
+            font-weight: bold;
+            color: #c40000
         }
     </style>
 </head>
 
 <body>
-    <header>ТСН-Новини</header>
+
+    <header>ТСН-Новини PRO</header>
 
     <div class="container">
         <button onclick="openEditor()">+ Додати новину</button>
@@ -140,14 +137,14 @@
         <div id="newsList"></div>
     </div>
 
-    <div id="editor">
+    <div id="editor" onclick="closeEditor(event)">
         <div id="editorBox">
-            <div class="close-btn" onclick="closeEditor()">×</div>
+            <div class="close-editor" onclick="logout()">×</div>
             <h3>Вхід редактора</h3>
             <input type="password" id="pass" placeholder="Пароль">
             <button onclick="checkPass()">Увійти</button>
 
-            <div id="editPanel" style="display:none; margin-top:15px">
+            <div id="editPanel" style="display:none">
                 <h3>Нова новина</h3>
                 <input id="title" placeholder="Заголовок">
                 <input type="file" id="file">
@@ -163,88 +160,102 @@
     </div>
 
     <script>
-        const PASSWORD = btoa("ua2026");
+        const PASSWORD = "ua2026";
         let currentFilter = 'all';
         let isAuth = false;
 
-        function openEditor() { document.getElementById('editor').style.display = 'flex'; }
-        function closeEditor() { document.getElementById('editor').style.display = 'none'; }
-
-        function checkPass() {
-            let input = document.getElementById('pass').value;
-            if (btoa(input) === PASSWORD) {
-                isAuth = true;
-                document.getElementById('editPanel').style.display = 'block';
-                closeEditor();
-                render();
-                alert('Ви увійшли як редактор');
-            } else alert('Невірний пароль');
+        async function fetchNews() {
+            let res = await fetch('news.json');
+            return await res.json();
         }
 
-        function addNews() {
-            if (!isAuth) return alert('Спочатку увійдіть як редактор');
-            let title = document.getElementById('title').value.trim();
-            let text = document.getElementById('text').value.trim();
-            let fileInput = document.getElementById('file');
-            let category = document.getElementById('cat').value;
-            if (!title || !text) return alert('Заповни все');
-
-            let reader = new FileReader();
-            reader.onload = function () {
-                let newsItem = { t: title, c: text, i: reader.result, cat: category, d: new Date().toLocaleString(), likes: 0 };
-                let arr = JSON.parse(localStorage.getItem('news') || '[]');
-                arr.unshift(newsItem);
-                localStorage.setItem('news', JSON.stringify(arr));
-                render();
-                document.getElementById('title').value = '';
-                document.getElementById('text').value = '';
-                fileInput.value = '';
-            }
-            if (fileInput.files[0]) reader.readAsDataURL(fileInput.files[0]);
-            else reader.onload();
+        async function saveNews(arr) {
+            await fetch('saveNews', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(arr)
+            });
         }
 
-        function getNews() { return JSON.parse(localStorage.getItem('news') || '[]'); }
-
-        function like(i) {
-            let arr = getNews();
-            arr[i].likes++;
-            localStorage.setItem('news', JSON.stringify(arr));
-            render();
-        }
-
-        function deleteNews(i) {
-            if (!isAuth) return alert('Нема доступу');
-            let arr = getNews();
-            arr.splice(i, 1);
-            localStorage.setItem('news', JSON.stringify(arr));
-            render();
-        }
-
-        function filterNews(cat) { currentFilter = cat; render(); }
-
-        function render() {
+        async function render() {
             let list = document.getElementById('newsList');
             list.innerHTML = '';
-            getNews().forEach((n, i) => {
+            let newsArr = await fetchNews();
+            newsArr.forEach((n, i) => {
                 if (currentFilter !== 'all' && n.cat !== currentFilter) return;
                 let div = document.createElement('div');
                 div.className = 'news';
                 div.innerHTML = `
-        ${isAuth ? `<div class="delete" style="display:block" onclick="deleteNews(${i})">✖</div>` : ''}
-        ${n.i ? `<img src="${n.i}">` : ''}
-        <h2>${n.t}</h2>
-        <small>${n.cat} | ${n.d}</small>
-        <p>${n.c}</p>
-        <div class="like" onclick="like(${i})">❤️ ${n.likes}</div>
+            ${isAuth ? `<div class="delete" onclick="deleteNews(${i})">✖</div>` : ''}
+            ${n.i ? `<img src="${n.i}">` : ''}
+            <h2>${n.t}</h2>
+            <small>${n.cat} | ${n.d}</small>
+            <p>${n.c}</p>
+            <div class="like" onclick="like(${i})">❤️ ${n.likes}</div>
         `;
                 list.append(div);
             });
         }
 
+        function openEditor() { document.getElementById('editor').style.display = 'flex' }
+        function closeEditor(e) { if (e.target.id === 'editor') document.getElementById('editor').style.display = 'none' }
+        function filterNews(cat) { currentFilter = cat; render(); }
+
+        function checkPass() {
+            let input = document.getElementById('pass').value;
+            if (input === PASSWORD) {
+                document.getElementById('editPanel').style.display = 'block';
+                isAuth = true;
+                render();
+            } else alert('Невірний пароль');
+        }
+
+        function logout() {
+            isAuth = false;
+            document.getElementById('editPanel').style.display = 'none';
+            document.getElementById('editor').style.display = 'none';
+            render();
+        }
+
+        async function addNews() {
+            let title = document.getElementById('title').value;
+            let text = document.getElementById('text').value;
+            let fileInput = document.getElementById('file');
+            let category = document.getElementById('cat').value;
+            if (!title || !text) return alert('Заповни все');
+
+            let reader = new FileReader();
+            reader.onload = async function () {
+                let n = { t: title, c: text, i: reader.result, cat: category, d: new Date().toLocaleString(), likes: 0 };
+                let newsArr = await fetchNews();
+                newsArr.unshift(n);
+                await saveNews(newsArr);
+                render();
+                document.getElementById('title').value = '';
+                document.getElementById('text').value = '';
+                document.getElementById('file').value = '';
+            }
+            if (fileInput.files[0]) reader.readAsDataURL(fileInput.files[0]);
+            else reader.onload();
+        }
+
+        async function like(i) {
+            let newsArr = await fetchNews();
+            newsArr[i].likes++;
+            await saveNews(newsArr);
+            render();
+        }
+
+        async function deleteNews(i) {
+            if (!isAuth) return alert('Нема доступу');
+            let newsArr = await fetchNews();
+            newsArr.splice(i, 1);
+            await saveNews(newsArr);
+            render();
+        }
+
         render();
     </script>
-
 </body>
 
 </html>
