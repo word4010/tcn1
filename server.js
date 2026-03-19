@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const app = express();
 app.use(express.json());
-app.use(express.static('.')); // щоб віддавати index.html і news.json
+app.use(express.static('.')); // index.html та news.json
 
 app.get('/news.json', (req, res) => {
     fs.readFile('news.json', 'utf-8', (err, data) => {

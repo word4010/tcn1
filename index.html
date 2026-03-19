@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ТСН-Новини PRO</title>
+    <title>ТСН-Новини ULTRA</title>
     <style>
         body {
             margin: 0;
@@ -43,12 +43,6 @@
             padding: 15px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             position: relative
-        }
-
-        .news img {
-            width: 100%;
-            border-radius: 6px;
-            margin-bottom: 10px
         }
 
         .news h2 {
@@ -124,7 +118,7 @@
 
 <body>
 
-    <header>ТСН-Новини PRO</header>
+    <header>ТСН-Новини ULTRA</header>
 
     <div class="container">
         <button onclick="openEditor()">+ Додати новину</button>
@@ -147,7 +141,7 @@
             <div id="editPanel" style="display:none">
                 <h3>Нова новина</h3>
                 <input id="title" placeholder="Заголовок">
-                <input type="file" id="file">
+                <input type="file" id="file" multiple>
                 <select id="cat">
                     <option>Політика</option>
                     <option>Ігри</option>
@@ -164,41 +158,36 @@
         let currentFilter = 'all';
         let isAuth = false;
 
-        async function fetchNews() {
-            let res = await fetch('news.json');
-            return await res.json();
-        }
+        function getNews() { return JSON.parse(localStorage.getItem('news') || "[]"); }
+        function saveNews(arr) { localStorage.setItem('news', JSON.stringify(arr)); }
 
-        async function saveNews(arr) {
-            await fetch('saveNews', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(arr)
-            });
-        }
-
-        async function render() {
+        function render() {
             let list = document.getElementById('newsList');
             list.innerHTML = '';
-            let newsArr = await fetchNews();
-            newsArr.forEach((n, i) => {
+            getNews().forEach((n, i) => {
                 if (currentFilter !== 'all' && n.cat !== currentFilter) return;
                 let div = document.createElement('div');
                 div.className = 'news';
+                let filesHTML = '';
+                if (n.files && n.files.length > 0) {
+                    n.files.forEach((f, index) => {
+                        filesHTML += `<div><a href="${f.data}" download="${f.name}">📎 ${f.name}</a></div>`;
+                    });
+                }
                 div.innerHTML = `
             ${isAuth ? `<div class="delete" onclick="deleteNews(${i})">✖</div>` : ''}
-            ${n.i ? `<img src="${n.i}">` : ''}
             <h2>${n.t}</h2>
             <small>${n.cat} | ${n.d}</small>
             <p>${n.c}</p>
+            ${filesHTML}
             <div class="like" onclick="like(${i})">❤️ ${n.likes}</div>
         `;
                 list.append(div);
             });
         }
 
-        function openEditor() { document.getElementById('editor').style.display = 'flex' }
-        function closeEditor(e) { if (e.target.id === 'editor') document.getElementById('editor').style.display = 'none' }
+        function openEditor() { document.getElementById('editor').style.display = 'flex'; }
+        function closeEditor(e) { if (e.target.id === 'editor') document.getElementById('editor').style.display = 'none'; }
         function filterNews(cat) { currentFilter = cat; render(); }
 
         function checkPass() {
@@ -217,45 +206,65 @@
             render();
         }
 
-        async function addNews() {
+        function addNews() {
             let title = document.getElementById('title').value;
             let text = document.getElementById('text').value;
             let fileInput = document.getElementById('file');
             let category = document.getElementById('cat').value;
             if (!title || !text) return alert('Заповни все');
 
-            let reader = new FileReader();
-            reader.onload = async function () {
-                let n = { t: title, c: text, i: reader.result, cat: category, d: new Date().toLocaleString(), likes: 0 };
-                let newsArr = await fetchNews();
-                newsArr.unshift(n);
-                await saveNews(newsArr);
+            let files = [];
+            if (fileInput.files.length > 0) {
+                let loaded = 0;
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    let reader = new FileReader();
+                    reader.onload = function (e) {
+                        files.push({ name: fileInput.files[i].name, data: e.target.result });
+                        loaded++;
+                        if (loaded === fileInput.files.length) {
+                            saveNewItem();
+                        }
+                    }
+                    reader.readAsDataURL(fileInput.files[i]);
+                }
+            } else saveNewItem();
+
+            function saveNewItem() {
+                let newsArr = getNews();
+                newsArr.unshift({
+                    t: title,
+                    c: text,
+                    cat: category,
+                    d: new Date().toLocaleString(),
+                    likes: 0,
+                    files: files
+                });
+                saveNews(newsArr);
                 render();
                 document.getElementById('title').value = '';
                 document.getElementById('text').value = '';
                 document.getElementById('file').value = '';
             }
-            if (fileInput.files[0]) reader.readAsDataURL(fileInput.files[0]);
-            else reader.onload();
         }
 
-        async function like(i) {
-            let newsArr = await fetchNews();
+        function like(i) {
+            let newsArr = getNews();
             newsArr[i].likes++;
-            await saveNews(newsArr);
+            saveNews(newsArr);
             render();
         }
 
-        async function deleteNews(i) {
+        function deleteNews(i) {
             if (!isAuth) return alert('Нема доступу');
-            let newsArr = await fetchNews();
+            let newsArr = getNews();
             newsArr.splice(i, 1);
-            await saveNews(newsArr);
+            saveNews(newsArr);
             render();
         }
 
         render();
     </script>
+
 </body>
 
 </html>
